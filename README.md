@@ -1,6 +1,6 @@
 # FHIR Data Generator
 
-The FHIR Data Generator is a Python script that generates synthetic data for the FHIR (Fast Healthcare Interoperability Resources) standard. The script reads data from a CSV file and generates FHIR resource instances in FSH (FHIR Shorthand) format.
+A Python script that generates synthetic data for the FHIR (Fast Healthcare Interoperability Resources) standard. The script reads data from a CSV file and generates FHIR resource instances in FSH (FHIR Shorthand) format.
 
 ## Usage
 
