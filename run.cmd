@@ -1,1 +1,1 @@
-python .\fhir-data-gen-liquid.py -i .\patient.csv --template .\template-liquid.fsh --output .\liquidfolder
+python .\fhir-data-gen.py --template .\template.fsh --output .\liquidfolder -d .\data
