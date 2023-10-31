@@ -1,5 +1,5 @@
 {
-    "input": "patient.csv",
+    "input": "data",
     "template": "template.fsh",
     "output": "output",
     "name": "Patient"

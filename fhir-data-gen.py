@@ -5,14 +5,10 @@ from jinja2 import Environment, BaseLoader
 import json
 import os
 import random
-import importlib.resources
-#import sys
 
 # Lookup function for the Jinja2 template
-
 def random_up_to(x):
     return random.randint(0, x)
-
 
 def read_config_file(filename="config.json"):
     """Read the configuration file and return its content as a dictionary."""
@@ -48,14 +44,10 @@ def show_usage_and_wait():
     print(usage)
     input()
 
-
 def lookup(value, table_name, tables):
     table = tables.get(table_name, {})
-    result = table.get(str(value), "NOT FOUND")
-#    print(f"Looking up key '{value}' in table {table_name}. Result: {result}")
-    return result
+    return table.get(str(value), "NOT FOUND")
 
-# Function to load all JSON files from a folder
 def load_all_tables_from_folder(folder_path):
     tables = {}
     for filename in os.listdir(folder_path):
@@ -65,46 +57,55 @@ def load_all_tables_from_folder(folder_path):
         if file_extension == ".json":
             with open(filepath, 'r') as f:
                 tables[table_name] = json.load(f)
-                
         elif file_extension == ".csv":
             df = pd.read_csv(filepath, sep=';')
             tables[table_name] = df.to_dict(orient="records")
-            
     return tables
 
-
-    
 if __name__ == '__main__':
     config = read_config_file()
     parser = argparse.ArgumentParser()
-
+    
+    parser.add_argument('--input', '-i', type=pathlib.Path, help='Path to the input data folder')
+    parser.add_argument('--template', '-t', type=pathlib.Path, help='FSH template file path')
+    parser.add_argument('--output', '-o', type=pathlib.Path, default='.', help='Output directory')
+    parser.add_argument('--name', '-n', type=str, default='Data', help='Name of the output file')
+    
     args = parser.parse_args()
-    if not hasattr(args, 'input') or not args.input or not hasattr(args, 'template') or not args.template:
+
+    # Merging CLI arguments and config values
+    if not args.input:
+        args.input = pathlib.Path(config.get("input", ""))
+
+    if not args.template:
+        args.template = pathlib.Path(config.get("template", ""))
+
+    if not args.output:
+        args.output = pathlib.Path(config.get("output", '.'))
+
+    if not args.name:
+        args.name = config.get("name", 'Data')
+
+    # Checking for missing required arguments
+    if not args.input or not args.template:
+        print("Error: Missing required arguments. Please provide them through command line or config.json.")
         show_usage_and_wait()
         exit(0)
-    try:
-        parser.add_argument('--output', '-o', type=pathlib.Path, default='.', help='output directory')
-        parser.add_argument('--data', '-d', type=pathlib.Path, required=True, help='data folder path')
-        parser.add_argument('--template', '-t', type=pathlib.Path, required=True, help='FSH template file path')
-        parser.add_argument('--name', '-n', type=str, default='Data', help='name of the output file')
 
+    try:
         fsh_template_text = args.template.read_text()
 
         # Set up Jinja2 environment and add the lookup function
         env = Environment(loader=BaseLoader())
         env.globals['lookup'] = lambda value, table_name: lookup(value, table_name, all_tables)
         env.globals['random'] = random_up_to
+
         template = env.from_string(fsh_template_text)
 
-        # Load all tables from the specified folder
-        all_tables = load_all_tables_from_folder(args.data)
-    #    print(all_tables)
+        all_tables = load_all_tables_from_folder(args.input)
 
-
-        # create output dir if doesn't exist
         pathlib.Path.mkdir(args.output, parents=True, exist_ok=True)
 
-        # Render the template with the dataframe and all loaded tables
         output_str = template.render(data=all_tables)
 
         print(f'Generating {args.name}...')
@@ -112,12 +113,11 @@ if __name__ == '__main__':
             output_file.write(output_str)
 
             print("\nSummary:")
-            print("-------")
-            print(f"Input file processed: {args.input}")
+            print(f"Input folder processed: {args.input}")
             print(f"Template used: {args.template}")
             print(f"Output directory: {args.output}")
             print(f"Name of the output file: {args.name}.fsh")
 
     except Exception as e:
         print(f"An error occurred: {e}")
-        input("Press Enter to exit...")        
+        input("Press Enter to exit...")
