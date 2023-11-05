@@ -6,6 +6,25 @@ import json
 import os
 import random
 
+
+DEFAULTS = {
+    "input": None,
+    "template": None,
+    "data": None,
+    "output": ".",
+    "name": "Data"
+}
+
+
+def script_relative_path(relative_path):
+    """Return the absolute path based on the directory of the script."""
+    if relative_path is None:
+        return None
+    script_dir = pathlib.Path(__file__).parent
+    return script_dir / relative_path
+
+
+
 # Lookup function for the Jinja2 template
 def random_up_to(x):
     return random.randint(0, x)
@@ -63,34 +82,38 @@ def load_all_tables_from_folder(folder_path):
     return tables
 
 if __name__ == '__main__':
+    # Read from config file
     config = read_config_file()
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='FHIR Data Generator')
     
     parser.add_argument('--input', '-i', type=pathlib.Path, help='Path to the input data folder')
     parser.add_argument('--template', '-t', type=pathlib.Path, help='FSH template file path')
-    parser.add_argument('--output', '-o', type=pathlib.Path, default='.', help='Output directory')
-    parser.add_argument('--name', '-n', type=str, default='Data', help='Name of the output file')
+    parser.add_argument('--output', '-o', type=pathlib.Path, help='output directory')
+    parser.add_argument('--name', '-n', type=str, help='name of the output file')
+    parser.add_argument('--data', '-d', type=pathlib.Path, help='data folder path')
     
+    # First, parse known arguments
     args = parser.parse_args()
 
-    # Merging CLI arguments and config values
-    if not args.input:
-        args.input = pathlib.Path(config.get("input", ""))
 
-    if not args.template:
-        args.template = pathlib.Path(config.get("template", ""))
 
-    if not args.output:
-        args.output = pathlib.Path(config.get("output", '.'))
+    # Resolve the values by prioritizing: cmd args > config.json > defaults
+    args.input = args.input or config.get('input', DEFAULTS['input'])
+    args.template = args.template or config.get('template', DEFAULTS['template'])
+    args.data = args.data or config.get('data', DEFAULTS['data'])
+    args.output = args.output or config.get('output', DEFAULTS['output'])
+    args.name = args.name or config.get('name', DEFAULTS['name'])
 
-    if not args.name:
-        args.name = config.get("name", 'Data')
+    # Resolve relative paths
+    args.input = script_relative_path(args.input)
+    args.template = script_relative_path(args.template)
+    args.data = script_relative_path(args.data)
+    args.output = script_relative_path(args.output)
 
-    # Checking for missing required arguments
     if not args.input or not args.template:
         print("Error: Missing required arguments. Please provide them through command line or config.json.")
         show_usage_and_wait()
-        exit(0)
+        exit(1)
 
     try:
         fsh_template_text = args.template.read_text()
