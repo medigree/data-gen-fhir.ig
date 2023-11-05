@@ -17,7 +17,10 @@ DEFAULTS = {
     "template": None,
     "data": None,
     "output": ".",
-    "name": "Data"
+    "name": "Data",
+    "sushi": False,
+    "package": False
+    
 }
 
 
@@ -102,6 +105,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', '-o', type=pathlib.Path, help='output directory')
     parser.add_argument('--name', '-n', type=str, help='name of the output file')
     parser.add_argument('--data', '-d', type=pathlib.Path, help='data folder path')
+    parser.add_argument('--sushi', type=bool, help='Run sushi')
+    parser.add_argument('--package', type=bool, help='Create package')
     
     # First, parse known arguments
     args = parser.parse_args()
@@ -114,6 +119,8 @@ if __name__ == '__main__':
     args.data = args.data or config.get('data', DEFAULTS['data'])
     args.output = args.output or config.get('output', DEFAULTS['output'])
     args.name = args.name or config.get('name', DEFAULTS['name'])
+    args.sushi = args.sushi or config.get('sushi', DEFAULTS['sushi'])
+    args.package = args.package or config.get('package', DEFAULTS['package'])
 
     # Resolve relative paths
     args.input = script_relative_path(args.input)
@@ -152,6 +159,9 @@ if __name__ == '__main__':
             print(f"Output directory: {args.output}")
             print(f"Name of the output file: {args.name}.fsh")
 
+        if not args.sushi:
+            exit(0)
+
         # Step 1: Run sushi command
         print("Running SUSHI to compile FSH files...")
 
@@ -166,11 +176,11 @@ if __name__ == '__main__':
             print(f'An error occurred while running sushi: {e}')
 
         # After sushi has been successfully run
-        package_name = config.get("package", "package")  # Default package name
+        package_name = "package"  # Default package name
         package_dir = pathlib.Path(package_name)  # Create a Path object for the package directory
 
         # Ask for confirmation to create the package if not automated in config.json
-        package = config.get("package", False)
+        package = args.package
         if not isinstance(package, bool):  # Check if package value from config is not a boolean
             package = package.lower() == 'true'
         
@@ -181,7 +191,7 @@ if __name__ == '__main__':
                 exit(0)
         
         # Remove the existing package directory before creating a new one
-        package_dir = pathlib.Path(config.get("package", "package"))
+        package_dir = pathlib.Path(package_name)
         if package_dir.exists():
             remove_directory(package_dir)
             print(f"Removed existing package directory: {package_dir}")
