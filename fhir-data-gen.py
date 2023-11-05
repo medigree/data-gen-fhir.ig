@@ -5,6 +5,11 @@ from jinja2 import Environment, BaseLoader
 import json
 import os
 import random
+import subprocess
+import shutil
+import json
+
+
 
 
 DEFAULTS = {
@@ -14,6 +19,12 @@ DEFAULTS = {
     "output": ".",
     "name": "Data"
 }
+
+
+def remove_directory(dir_path):
+    """Remove directory and all its contents."""
+    shutil.rmtree(dir_path, ignore_errors=True)
+
 
 
 def script_relative_path(relative_path):
@@ -140,6 +151,86 @@ if __name__ == '__main__':
             print(f"Template used: {args.template}")
             print(f"Output directory: {args.output}")
             print(f"Name of the output file: {args.name}.fsh")
+
+        # Step 1: Run sushi command
+        print("Running SUSHI to compile FSH files...")
+
+        fsh_generated_dir = pathlib.Path('fsh-generated')
+        if fsh_generated_dir.exists():
+            remove_directory(fsh_generated_dir)
+            print(f"Removed existing directory: {fsh_generated_dir}")
+
+        try:
+            subprocess.run(['sushi', '.'], check=True, shell=True)
+        except subprocess.CalledProcessError as e:
+            print(f'An error occurred while running sushi: {e}')
+
+        # After sushi has been successfully run
+        package_name = config.get("package", "package")  # Default package name
+        package_dir = pathlib.Path(package_name)  # Create a Path object for the package directory
+
+        # Ask for confirmation to create the package if not automated in config.json
+        package = config.get("package", False)
+        if not isinstance(package, bool):  # Check if package value from config is not a boolean
+            package = package.lower() == 'true'
+        
+        if not package:
+            user_confirmation = input("Would you like to create the package? [Y/N]: ")
+            if user_confirmation.lower() != 'y':
+                print("Package creation cancelled.")
+                exit(0)
+        
+        # Remove the existing package directory before creating a new one
+        package_dir = pathlib.Path(config.get("package", "package"))
+        if package_dir.exists():
+            remove_directory(package_dir)
+            print(f"Removed existing package directory: {package_dir}")
+        
+
+        package_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy the JSON files from fsh-generated to the package directory's "examples" folder
+        examples_dir = package_dir/'examples'
+        examples_dir.mkdir(exist_ok=True)
+
+        for json_file in fsh_generated_dir.glob('resources/*.json'):
+            shutil.copy(json_file, examples_dir)
+
+
+        # Create a package.json file in the package directory
+        package_json = {
+            "name": package_name,
+            "version": "1.0.0",
+            "description": "A package of FHIR resources",
+            "main": "index.js",
+            "scripts": {
+                "test": "echo \"Error: no test specified\" && exit 1"
+            },
+            "author": "",
+            "license": "ISC",
+            "dependencies": {}
+        }
+
+        with open(package_dir/'package.json', 'w') as f:
+            json.dump(package_json, f, indent=4)
+
+        # Run `npm pack` to create the npm package
+        os.chdir(package_dir)  # Change to the package directory
+        try:
+            subprocess.run(['npm', 'pack'], check=True, shell=True)
+            print(f"Packaged the FHIR resources into an npm package tarball in the '{package_dir}' directory.")
+        except subprocess.CalledProcessError as e:
+            print(f'An error occurred while packaging the resources: {e}')
+
+
+    except subprocess.CalledProcessError as e:
+        print(f"An error occurred while running SUSHI or packaging npm: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+
+
 
     except Exception as e:
         print(f"An error occurred: {e}")
