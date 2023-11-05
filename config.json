@@ -1,6 +1,6 @@
 {
     "input": "data",
     "template": "template.fsh",
-    "output": "output",
+    "output": "input/fsh",
     "name": "Patient"
 }
