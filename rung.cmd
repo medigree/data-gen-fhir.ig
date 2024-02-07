@@ -1,0 +1,1 @@
+python .\fhir-data-gen.py --template .\templateg.fsh --output .\output -d .\datag

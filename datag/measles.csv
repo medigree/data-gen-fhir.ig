@@ -1,0 +1,5 @@
+age;no_primary_series;time_since_live_vaccine;output
+9 months or more;true;none in the last 4 weeks;is due for MCV1
+less than 15 months;false;not applicable;is not due for MCV2
+15 months or more;false;none in the last 4 weeks;is due for MCV2
+15 months or more;false;within the last 4 weeks;is not due for MCV2

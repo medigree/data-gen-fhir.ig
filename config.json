@@ -2,7 +2,6 @@
     "input": "data",
     "template": "template.fsh",
     "output": "input/fsh",
-    "name": "Patient",
     "sushi": true,
     "package": true
 }

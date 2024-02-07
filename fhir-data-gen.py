@@ -1,14 +1,14 @@
 import argparse
 import pathlib
 import pandas as pd
-from jinja2 import Environment, BaseLoader
+from jinja2 import Environment, select_autoescape, BaseLoader
 import json
 import os
 import random
 import subprocess
 import shutil
 import json
-
+from datetime import datetime, timedelta
 
 
 
@@ -22,6 +22,29 @@ DEFAULTS = {
     "package": False
     
 }
+
+
+
+def now(format_string=None):
+    if format_string is None:
+        return datetime.now()
+    else:
+        return datetime.now().strftime(format_string)
+
+# Define your custom function
+def subtract_time(date, amount, unit):
+    units = {
+        'seconds': lambda x: timedelta(seconds=x),
+        'minutes': lambda x: timedelta(minutes=x),
+        'hours': lambda x: timedelta(hours=x),
+        'days': lambda x: timedelta(days=x),
+        'weeks': lambda x: timedelta(weeks=x),
+    }
+
+    if unit not in units:
+        raise ValueError(f"Unsupported time unit: {unit}")
+    
+    return date - units[unit](amount)
 
 
 def remove_directory(dir_path):
@@ -114,7 +137,7 @@ if __name__ == '__main__':
 
 
     # Resolve the values by prioritizing: cmd args > config.json > defaults
-    args.input = args.input or config.get('input', DEFAULTS['input'])
+#    args.input = args.input or config.get('input', DEFAULTS['input'])
     args.template = args.template or config.get('template', DEFAULTS['template'])
     args.data = args.data or config.get('data', DEFAULTS['data'])
     args.output = args.output or config.get('output', DEFAULTS['output'])
@@ -123,12 +146,12 @@ if __name__ == '__main__':
     args.package = args.package or config.get('package', DEFAULTS['package'])
 
     # Resolve relative paths
-    args.input = script_relative_path(args.input)
+#    args.input = script_relative_path(args.input)
     args.template = script_relative_path(args.template)
     args.data = script_relative_path(args.data)
     args.output = script_relative_path(args.output)
 
-    if not args.input or not args.template:
+    if not args.data or not args.template:
         print("Error: Missing required arguments. Please provide them through command line or config.json.")
         show_usage_and_wait()
         exit(1)
@@ -137,13 +160,16 @@ if __name__ == '__main__':
         fsh_template_text = args.template.read_text()
 
         # Set up Jinja2 environment and add the lookup function
-        env = Environment(loader=BaseLoader())
+        env = Environment(autoescape=select_autoescape(['html', 'xml']),loader=BaseLoader())
+        env.filters['date'] = lambda d, fmt=None: d.strftime(fmt) if fmt else d.isoformat()
         env.globals['lookup'] = lambda value, table_name: lookup(value, table_name, all_tables)
         env.globals['random'] = random_up_to
+        env.globals['time_diff'] = subtract_time
+        env.globals['now'] = now
 
         template = env.from_string(fsh_template_text)
 
-        all_tables = load_all_tables_from_folder(args.input)
+        all_tables = load_all_tables_from_folder(args.data)
 
         pathlib.Path.mkdir(args.output, parents=True, exist_ok=True)
 
@@ -154,7 +180,7 @@ if __name__ == '__main__':
             output_file.write(output_str)
 
             print("\nSummary:")
-            print(f"Input folder processed: {args.input}")
+            print(f"Input folder processed: {args.data}")
             print(f"Template used: {args.template}")
             print(f"Output directory: {args.output}")
             print(f"Name of the output file: {args.name}.fsh")
